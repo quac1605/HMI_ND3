@@ -11,6 +11,8 @@ from pathlib import Path
 
 from web_core import Config, Controller, encoder_velocity
 
+JOYPAD_SOURCE = Path(__file__).resolve().parent.parent / 'joypad_driver' / 'src' / 'joypad_driver.js'
+
 
 class Backend:
     def __init__(self, demo=False, web_timeout=0.25, encoder_timeout=0.5):
@@ -189,13 +191,20 @@ def make_handler(backend, static_dir, allowed_hosts):
         def do_GET(self):
             if not self.valid_host():
                 return self.send(403, dict(error='Host không được cho phép.'))
-            routes = {'/': ('index.html', 'text/html; charset=utf-8'),
-                      '/app.js': ('app.js', 'text/javascript; charset=utf-8'),
-                      '/style.css': ('style.css', 'text/css; charset=utf-8')}
+            # Serve the sibling module directly: one source of truth, no copy/build step.
+            # Only these explicit files are public; never expose a filesystem directory.
+            routes = {'/': (static_dir / 'index.html', 'text/html; charset=utf-8'),
+                      '/app.js': (static_dir / 'app.js', 'text/javascript; charset=utf-8'),
+                      '/style.css': (static_dir / 'style.css', 'text/css; charset=utf-8'),
+                      '/joypad_driver/joypad_driver.js': (JOYPAD_SOURCE, 'text/javascript; charset=utf-8')}
             if self.path not in routes:
                 return self.send(404, dict(error='Not found'))
             filename, mime = routes[self.path]
-            self.send(200, (static_dir / filename).read_bytes(), mime)
+            try:
+                body = filename.read_bytes()
+            except OSError:
+                return self.send(503, dict(error='Thiếu tài nguyên web hoặc joypad_driver. Kiểm tra thư mục cài đặt.'))
+            self.send(200, body, mime)
 
         def do_POST(self):
             if not self.valid_host() or self.headers.get('Origin') != 'http://' + self.headers.get('Host', ''):
@@ -255,6 +264,8 @@ def main():
     args = parser.parse_args()
     if not 0.1 <= args.encoder_timeout <= 2:
         parser.error('--encoder-timeout must be in 0.1..2 s')
+    if not JOYPAD_SOURCE.is_file():
+        parser.error(f'Thiếu module joypad: {JOYPAD_SOURCE}. Đặt joypad_driver cạnh zlac_motor_web.')
     static_dir = Path(__file__).resolve().parent / 'static'
     hosts = {f'127.0.0.1:{args.port}', f'localhost:{args.port}', *args.allowed_host}
     backend = Backend(args.demo, args.web_timeout, args.encoder_timeout)

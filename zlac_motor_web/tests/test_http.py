@@ -7,8 +7,9 @@ import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from app import Backend,make_handler
+from app import Backend,make_handler,JOYPAD_SOURCE
 
 
 class HTTPTests(unittest.TestCase):
@@ -37,6 +38,26 @@ class HTTPTests(unittest.TestCase):
         request=urllib.request.Request('http://'+self.host+'/',headers={'Host':'evil.example'})
         with self.assertRaises(urllib.error.HTTPError) as cm:urllib.request.urlopen(request)
         self.assertEqual(cm.exception.code,403)
+
+    def test_joypad_source_is_served_directly_before_web_adapter(self):
+        with urllib.request.urlopen('http://'+self.host+'/') as response:
+            page=response.read().decode()
+        route='/joypad_driver/joypad_driver.js'
+        self.assertLess(page.index('src="'+route+'"'),page.index('src="/app.js"'))
+        with urllib.request.urlopen('http://'+self.host+route) as response:
+            self.assertEqual(response.headers.get_content_type(),'text/javascript')
+            self.assertEqual(response.headers['Cache-Control'],'no-store')
+            self.assertEqual(response.read(),JOYPAD_SOURCE.read_bytes())
+        for path in ['/joypad_driver/../app.py','/joypad_driver/README.md','/joypad_driver/src/joypad_driver.js']:
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen('http://'+self.host+path)
+            self.assertEqual(cm.exception.code,404)
+
+    def test_missing_joypad_source_reports_unavailable(self):
+        with patch('app.JOYPAD_SOURCE',JOYPAD_SOURCE.with_name('missing-test-source.js')):
+            with self.assertRaises(urllib.error.HTTPError) as cm:
+                urllib.request.urlopen('http://'+self.host+'/joypad_driver/joypad_driver.js')
+            self.assertEqual(cm.exception.code,503)
 
     def test_demo_http_control_stop_and_dropout(self):
         session=self.request('session');token=session['session']

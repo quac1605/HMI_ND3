@@ -143,6 +143,33 @@ async function mainTests(app) {
     key('keydown','KeyW');await flush();failCommand=true;await app.poll();await flush();assert(last('/api/stop'),'network error stop');
     const arms=requests.filter(r=>r.path==='/api/arm').length;key('keydown','KeyW',{repeat:true});await flush();assert(requests.filter(r=>r.path==='/api/arm').length===arms,'failure repeat');failCommand=false;
   });
+  await test('pointer cancel and lost capture reach the web stop endpoint',async()=>{
+    const joystick=elements.get('joystick');
+    for(const event of ['pointercancel','lostpointercapture']) {
+      joystick.emit('pointerdown',{button:0,pointerId:7,clientX:100,clientY:29});await flush();await app.poll();
+      near(last('/api/command').data.v,.1,'pointer movement');
+      const before=requests.filter(r=>r.path==='/api/stop').length;
+      joystick.emit(event,{pointerId:7});await flush();
+      assert(requests.filter(r=>r.path==='/api/stop').length===before+1,event+' stop');
+      near(app.command().v,0,'local command reset');
+    }
+  });
+  await test('changing a speed setting stops before applying the new value',async()=>{
+    key('keydown','KeyW');await flush();elements.get('forward').value='.2';elements.get('forward').emit('input');await flush();
+    assert(last('/api/stop'),'input change stop');near(app.command().v,0,'no continuing command');
+    key('keyup','KeyW');key('keydown','KeyW');await flush();await app.poll();
+    near(last('/api/command').data.v,.2,'new press uses new speed');
+    key('keyup','KeyW');await flush();elements.get('forward').value='.1';
+  });
+  await test('stalled responses trigger beacon stop; recovery does not restart held keys',async()=>{
+    key('keydown','KeyW');await flush();clock+=400;intervals[1]();await flush();
+    assert(last('/api/stop')?.beacon,'response timeout stop');
+    const arms=requests.filter(r=>r.path==='/api/arm').length;
+    await app.poll();key('keydown','KeyW',{repeat:true});await flush();
+    assert(requests.filter(r=>r.path==='/api/arm').length===arms,'recovery cannot rearm');
+    near(app.command().v,0,'zero after recovery');
+  });
   print(`${passed} keyboard/frontend tests passed; no hardware or HTTP connection used.`);
 }
+eval(read('../joypad_driver/src/joypad_driver.js'));
 eval(read('static/app.js')+'\nmainTests({poll, command, stop}).catch(error=>{printerr(error.stack);System.exit(1);});');

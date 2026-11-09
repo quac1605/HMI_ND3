@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="vi">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZLAC • Bàn kiểm tra động cơ</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZLAC • Bàn kiểm tra động cơ</title><link rel="stylesheet" href="/style.css"><script src="/joypad_driver/joypad_driver.js" defer></script><script src="/app.js" defer></script></head>
 <body>
 <div class="shell">
 <header><a class="brand" href="/" aria-label="ZLAC trang chính"><span class="brand-icon">Z</span><span>ZLAC<span class="brand-sub">MOTOR WORKBENCH</span></span></a><div class="header-right"><span id="mode" class="badge">ĐANG KẾT NỐI</span><span id="connection" class="connection">● Chưa kết nối</span></div></header>
@@ -11,10 +11,10 @@
 <div class="workspace">
 <section class="panel control-panel" aria-labelledby="control-title"><div class="section-title"><div><span class="eyebrow">01 / ĐIỀU KHIỂN</span><h2 id="control-title">Tốc độ & hướng đi</h2></div><span class="tag">Giữ để chạy</span></div>
 <div class="speed-grid">
-<label class="speed-field"><span>↑ Tiến <small>m/s</small></span><input id="forward" type="number" min="0" step="any" value="0.10" inputmode="decimal" aria-label="Tốc độ tiến (m/s)"></label>
-<label class="speed-field"><span>↓ Lùi <small>m/s</small></span><input id="backward" type="number" min="0" step="any" value="0.10" inputmode="decimal" aria-label="Tốc độ lùi (m/s)"></label>
-<label class="speed-field"><span>↶ Quay trái <small>rad/s</small></span><input id="left" type="number" min="0" step="any" value="0.30" inputmode="decimal" aria-label="Tốc độ quay trái (rad/s)"></label>
-<label class="speed-field"><span>↷ Quay phải <small>rad/s</small></span><input id="right" type="number" min="0" step="any" value="0.30" inputmode="decimal" aria-label="Tốc độ quay phải (rad/s)"></label>
+<label class="speed-field"><span>↑ Tiến <small>m/s</small></span><input id="forward" type="number" min="0" step="0.1" value="0.10" inputmode="decimal" aria-label="Tốc độ tiến (m/s)"></label>
+<label class="speed-field"><span>↓ Lùi <small>m/s</small></span><input id="backward" type="number" min="0" step="0.1" value="0.10" inputmode="decimal" aria-label="Tốc độ lùi (m/s)"></label>
+<label class="speed-field"><span>↶ Quay trái <small>rad/s</small></span><input id="left" type="number" min="0" step="0.1" value="0.30" inputmode="decimal" aria-label="Tốc độ quay trái (rad/s)"></label>
+<label class="speed-field"><span>↷ Quay phải <small>rad/s</small></span><input id="right" type="number" min="0" step="0.1" value="0.30" inputmode="decimal" aria-label="Tốc độ quay phải (rad/s)"></label>
 </div><p id="limits" class="microcopy">Đang chờ cấu hình thực từ driver…</p><p id="input-error" class="error-text" role="alert"></p>
 <div class="joystick-wrap"><span class="direction north">TIẾN</span><span class="direction west">TRÁI</span><span class="direction east">PHẢI</span><span class="direction south">LÙI</span><div id="joystick" class="joystick" role="button" tabindex="0" aria-label="Joystick. Giữ chuột hoặc chạm và kéo để điều khiển. Bàn phím: giữ W để tiến, S để lùi, A để quay trái, D để quay phải. Thả hết phím để dừng. Escape dừng ngay." aria-keyshortcuts="W A S D Escape" aria-disabled="true"><div class="ring inner-ring"></div><div class="cross horizontal"></div><div class="cross vertical"></div><div id="stick" class="stick"><span>✣</span></div></div></div>
 <p class="joystick-hint">Kéo để đi và quay đồng thời · Thả để dừng<br><span><kbd>W</kbd> tiến · <kbd>S</kbd> lùi · <kbd>A</kbd> trái · <kbd>D</kbd> phải<br>Giữ để chạy · Thả hết phím hoặc <kbd>Esc</kbd> để dừng</span></p>

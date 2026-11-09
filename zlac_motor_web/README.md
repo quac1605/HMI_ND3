@@ -1,19 +1,24 @@
 # ZLAC Motor Web — ứng dụng độc lập
 
 Giao diện điều khiển và kiểm tra động cơ ZLAC8015D bằng ROS 2.
-**Không thay đổi bất kỳ file nào của `../zlac_driver_encoder`.** Toàn bộ web,
-cầu nối, watchdog, kiểm thử và sản phẩm build nằm trong thư mục này.
+**Không thay đổi bất kỳ file nào của `../zlac_driver_encoder`.** Web, cầu nối,
+watchdog và sản phẩm build nằm trong thư mục này. Thuật toán joypad được tách
+thành module độc lập tại [`../joypad_driver`](../joypad_driver/README.md).
 
 ## Cấu trúc và luồng dữ liệu
 
 ```text
 HMI_demo/
 ├── zlac_driver_encoder/         # package gốc, giữ nguyên
+├── joypad_driver/               # module điều khiển đầu vào độc lập
+│   ├── src/joypad_driver.js     # chuột/cảm ứng/WASD → (v,ω), vùng chết, dừng
+│   ├── tests/                  # kiểm thử thuật toán và sự kiện riêng
+│   └── docs/THUYET_MINH.md      # tài liệu dùng làm cơ sở báo cáo công việc 3.6
 └── zlac_motor_web/
     ├── app.py                  # HTTP server + publisher /cmd_vel + subscriber /encoder
     ├── guard.py                # node ROS độc lập: watchdog, validate, remap, giám sát process
     ├── web_core.py             # động học, giới hạn, lease và độ mới của lệnh
-    ├── static/                 # HTML, CSS, JavaScript; không npm/CDN
+    ├── static/                 # HTML, CSS, adapter hiển thị/HTTP; không npm/CDN
     ├── tools/build_driver.py   # build package gốc vào .runtime, đọc cấu hình thực
     ├── tools/driver_child.py   # Linux parent-death signal cho driver con
     ├── docs/ANALYSIS.md         # phân tích code gốc, đơn vị/dấu/rủi ro
@@ -22,7 +27,7 @@ HMI_demo/
 ```
 
 ```text
-Chuột / cảm ứng → HTTP cùng origin → app.py
+Chuột / cảm ứng / WASD → joypad_driver → static/app.js → HTTP cùng origin → app.py
     → /cmd_vel (geometry_msgs/Twist)
     → guard.py (watchdog ROS)
     → /zlac_guard_<id>/cmd_vel (topic riêng mỗi lần chạy)
@@ -39,6 +44,16 @@ guard.py → /zlac/status (std_msgs/String JSON)
 Web và guard **không mở cổng serial**. Guard tự khởi động đúng binary driver đã
 build từ nguồn gốc. Không chạy thêm `ros2 run zlac_driver zlac_node` hoặc teleop
 song song. Driver nguyên bản chỉ nhận topic riêng, không trực tiếp nhận `/cmd_vel`.
+
+Server phục vụ trực tiếp `../joypad_driver/src/joypad_driver.js` tại URL
+`/joypad_driver/joypad_driver.js`; không sao chép mã vào `static`. Giữ hai thư
+mục ngang cấp khi di chuyển/cài đặt. Module joypad chạy trong trình duyệt,
+không cần terminal, npm hay bước build riêng.
+
+**Cập nhật từ bản web cũ:** khi xe đã dừng, Ctrl+C terminal `app.py`, chạy lại
+lệnh web như dưới đây rồi Ctrl+F5 trình duyệt. Server cũ chưa có route của
+module mới; chỉ refresh sẽ không đủ. Không cần build lại driver/encoder cho
+việc tách joypad. Nếu thiếu source module, server mới báo lỗi ngay khi khởi động.
 
 ## Chạy demo — không cần ROS, không cần động cơ
 
@@ -229,6 +244,7 @@ không thay cho việc đo thời gian dừng và kiểm tra chiều quay trên 
 ```bash
 cd /home/vistar/projects/HMI_demo/zlac_motor_web
 python3 -m unittest discover -s tests -p test_web_core.py -v
+python3 -m unittest discover -s tests -p test_http.py -v
 source /opt/ros/jazzy/setup.bash
 python3 tools/build_driver.py
 python3 -m unittest discover -s tests -p test_ros_integration.py -v
@@ -238,14 +254,17 @@ Kiểm thử sự kiện bàn phím bằng JavaScript (GJS chỉ cần khi chạ
 để chạy web; máy hiện tại đã có):
 
 ```bash
+gjs ../joypad_driver/tests/test_joypad_driver.js
 gjs tests/test_keyboard.js
 ```
 
-13 trường hợp kiểm thử này chạy trực tiếp `static/app.js` với DOM và HTTP giả:
+12 ca độc lập kiểm tra thuật toán và vòng đời của module joypad. 16 trường hợp
+kiểm thử frontend nạp `joypad_driver` rồi `static/app.js` với DOM và HTTP giả:
 W/S/A/D, kết hợp/phím đối nhau, thả từng phím, ô nhập/IME/phím tắt, tốc độ sai,
 Dừng/Escape và auto-repeat, thả phím khi đang chờ arming, mất focus/ẩn tab,
 chuyển focus vào ô nhập, không trộn chuột với WASD, giữ tương thích Space + mũi
-tên và mất kết nối. Không phát ROS hoặc gửi lệnh đến phần cứng.
+tên, mất kết nối, pointer cancel/mất capture, đổi tốc độ khi chạy và timeout
+phản hồi. Không phát ROS hoặc gửi lệnh đến phần cứng.
 
 
 Integration dùng ROS domain **176**, discovery localhost, HTTP port 8081 và
@@ -261,13 +280,17 @@ Chạy test khi domain 176/port 8081 rảnh. Không chạy thử này trong ROS 
 - Integration qua với **binary driver nguyên bản + guard + bridge**: vận tốc đúng
   dấu/quantization, watchdog ROS, lệnh NaN/Infinity/vượt giới hạn, explicit stop,
   mất HTTP heartbeat, mất encoder, SIGKILL cầu nối, SIGKILL guard/parent-death stop.
-- 2 HTTP tests qua: bảo vệ Origin/Host, arm/command/stop, cảnh báo giới hạn và
-  mô phỏng encoder mất/khôi phục. Tổng cộng **13 tests qua**.
+- 4 HTTP tests qua: bảo vệ Origin/Host, arm/command/stop, cảnh báo giới hạn,
+  mô phỏng encoder mất/khôi phục, tải source joypad đúng thứ tự và báo thiếu
+  module. Tổng cộng **15 Python tests qua** (10 core + 4 HTTP + 1 ROS/PTY).
+- Sau khi tách module joypad: **12 test module + 16 test frontend qua** bằng
+  GJS, cùng 15 Python tests trên; tổng cộng **43 ca kiểm thử qua**.
 - Python syntax compile qua. Đã kiểm tra hiển thị và ô nhập trong trình duyệt demo;
   thao tác click/drag qua công cụ trình duyệt nhúng chưa xác minh được. Lần kiểm
   tra cuối công cụ trình duyệt từ chối truy cập trang demo theo chính sách công
   cụ. Kiểm thử API không thay thế kiểm thử chuột/cảm ứng thực tế.
-- `git status --short` trong package driver gốc trống sau khi hoàn tất.
+- `git diff -- zlac_driver_encoder` trống; checksum các file nguồn driver/encoder
+  không đổi sau khi tách joypad.
 
 **Chưa xác minh trên phần cứng:** cổng thật, chiều lắp/dấu encoder, độ chính xác
 bán kính/khoảng cách bánh, độ trễ dừng, hiệu quả giảm tốc, lỗi điện/RS485 thực,
