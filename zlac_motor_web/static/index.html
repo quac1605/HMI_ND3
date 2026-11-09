@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZLAC • Bàn kiểm tra động cơ</title><link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script></head>
+<body>
+<div class="shell">
+<header><a class="brand" href="/" aria-label="ZLAC trang chính"><span class="brand-icon">Z</span><span>ZLAC<span class="brand-sub">MOTOR WORKBENCH</span></span></a><div class="header-right"><span id="mode" class="badge">ĐANG KẾT NỐI</span><span id="connection" class="connection">● Chưa kết nối</span></div></header>
+<main>
+<div class="page-heading"><div><div class="eyebrow">ĐIỀU KHIỂN / KIỂM TRA</div><h1>Hai bánh. Một góc nhìn.</h1><p>Điều khiển vi sai và đối chiếu tốc độ encoder theo thời gian thực.</p></div><div class="topic-pill"><span class="dot"></span> /cmd_vel <span>→</span> /encoder</div></div>
+<div id="demo-banner" class="demo-banner" hidden><strong>DEMO — DỮ LIỆU GIẢ LẬP</strong><span>Không kết nối ROS hay động cơ. Phản hồi bánh được mô phỏng.</span><button id="dropout" class="quiet-button">Thử mất encoder</button></div>
+<div id="safety" class="safety"><span class="safety-icon">!</span><span><strong>Kê cả hai bánh khỏi mặt đất trước khi thử.</strong> Giữ E-stop phần cứng trong tầm tay. Nút Dừng gửi vận tốc 0, không cắt nguồn động lực.</span></div>
+<div class="workspace">
+<section class="panel control-panel" aria-labelledby="control-title"><div class="section-title"><div><span class="eyebrow">01 / ĐIỀU KHIỂN</span><h2 id="control-title">Tốc độ & hướng đi</h2></div><span class="tag">Giữ để chạy</span></div>
+<div class="speed-grid">
+<label class="speed-field"><span>↑ Tiến <small>m/s</small></span><input id="forward" type="number" min="0" step="any" value="0.10" inputmode="decimal" aria-label="Tốc độ tiến (m/s)"></label>
+<label class="speed-field"><span>↓ Lùi <small>m/s</small></span><input id="backward" type="number" min="0" step="any" value="0.10" inputmode="decimal" aria-label="Tốc độ lùi (m/s)"></label>
+<label class="speed-field"><span>↶ Quay trái <small>rad/s</small></span><input id="left" type="number" min="0" step="any" value="0.30" inputmode="decimal" aria-label="Tốc độ quay trái (rad/s)"></label>
+<label class="speed-field"><span>↷ Quay phải <small>rad/s</small></span><input id="right" type="number" min="0" step="any" value="0.30" inputmode="decimal" aria-label="Tốc độ quay phải (rad/s)"></label>
+</div><p id="limits" class="microcopy">Đang chờ cấu hình thực từ driver…</p><p id="input-error" class="error-text" role="alert"></p>
+<div class="joystick-wrap"><span class="direction north">TIẾN</span><span class="direction west">TRÁI</span><span class="direction east">PHẢI</span><span class="direction south">LÙI</span><div id="joystick" class="joystick" role="button" tabindex="0" aria-label="Joystick. Giữ chuột hoặc chạm và kéo để điều khiển. Bàn phím: giữ W để tiến, S để lùi, A để quay trái, D để quay phải. Thả hết phím để dừng. Escape dừng ngay." aria-keyshortcuts="W A S D Escape" aria-disabled="true"><div class="ring inner-ring"></div><div class="cross horizontal"></div><div class="cross vertical"></div><div id="stick" class="stick"><span>✣</span></div></div></div>
+<p class="joystick-hint">Kéo để đi và quay đồng thời · Thả để dừng<br><span><kbd>W</kbd> tiến · <kbd>S</kbd> lùi · <kbd>A</kbd> trái · <kbd>D</kbd> phải<br>Giữ để chạy · Thả hết phím hoặc <kbd>Esc</kbd> để dừng</span></p>
+<div class="request-line">Yêu cầu từ joystick <code id="requested">v +0.000 · ω +0.000</code></div>
+<button id="stop" class="stop-button"><span class="stop-square"></span>DỪNG <small>VẬN TỐC 0</small></button>
+<p id="action" class="action" aria-live="polite">Đang chờ cầu nối…</p>
+</section>
+<div class="readouts">
+<section class="panel command-panel"><div class="section-title"><div><span class="eyebrow">02 / LỆNH ĐÃ PHÁT</span><h2>Vận tốc thân xe</h2></div><span id="command-status" class="tag">Chưa có lệnh</span></div>
+<div class="command-values"><div><span>Tiến / lùi <code>linear.x</code></span><strong id="cmd-v">+0.000</strong><small>m/s</small></div><div><span>Quay trái / phải <code>angular.z</code></span><strong id="cmd-w">+0.000</strong><small>rad/s</small></div></div>
+<div id="clamp-warning" class="limit-warning" hidden>RPM bị giới hạn. Tốc độ và độ cong thực hiện có thể khác yêu cầu.</div>
+<div class="command-foot"><span id="command-time">Chưa phát lệnh</span><span id="driver-status">Giám sát ROS: chưa có phản hồi</span></div>
+</section>
+<section class="panel feedback-panel"><div class="section-title"><div><span class="eyebrow">03 / PHẢN HỒI BÁNH XE</span><h2>Lệnh so với encoder</h2></div><span id="encoder-status" class="badge muted">CHƯA CÓ DỮ LIỆU</span></div>
+<div class="legend"><span><i class="expected-dot"></i>Dự kiến sau giới hạn & làm tròn</span><span><i class="measured-dot"></i>Encoder đo được</span><b>Đơn vị: m/s</b></div>
+<div class="wheel-summary"><div class="wheel-card"><div class="wheel-top"><span>BÁNH TRÁI</span><code>left_wheel_joint</code></div><div class="wheel-reading"><strong id="left-measured">—</strong><span>m/s</span></div><div class="meter"><div class="meter-mid"></div><div id="left-expected-bar" class="meter-bar expected-bar"></div><div id="left-measured-bar" class="meter-bar measured-bar"></div></div></div><div class="wheel-card"><div class="wheel-top"><span>BÁNH PHẢI</span><code>right_wheel_joint</code></div><div class="wheel-reading"><strong id="right-measured">—</strong><span>m/s</span></div><div class="meter"><div class="meter-mid"></div><div id="right-expected-bar" class="meter-bar expected-bar"></div><div id="right-measured-bar" class="meter-bar measured-bar"></div></div></div></div>
+<div class="table-scroll"><table><thead><tr><th>Bánh xe</th><th>Dự kiến <small>m/s</small></th><th>Đo được <small>m/s</small></th><th>Đo − dự kiến <small>m/s</small></th></tr></thead><tbody><tr><th>Trái</th><td id="left-expected">—</td><td id="left-actual">—</td><td id="left-error">—</td></tr><tr><th>Phải</th><td id="right-expected">—</td><td id="right-actual">—</td><td id="right-error">—</td></tr></tbody></table></div>
+<div id="rpm-detail" class="rpm-detail">RPM tính → RPM gửi: —</div>
+<div class="feedback-foot"><span id="encoder-time">Cập nhật: —</span><span id="encoder-age">Tuổi dữ liệu: —</span></div><p id="encoder-stamp" class="microcopy">Timestamp ROS: —</p>
+<p class="evidence-note">“Đã phát lệnh” xác nhận việc gửi lên ROS. Driver gốc không cung cấp ACK lên ROS. Chuyển động được đối chiếu bằng encoder; dữ liệu cũ không được xem là đo hiện tại.</p>
+</section>
+<section class="config-strip"><div><span>BÁN KÍNH BÁNH</span><strong id="radius">—</strong></div><div><span>KHOẢNG CÁCH BÁNH</span><strong id="base">—</strong></div><div><span>GIỚI HẠN BÁNH</span><strong id="rpm">—</strong></div><div><span>WATCHDOG GIÁM SÁT</span><strong id="watchdog">—</strong></div></section>
+</div></div>
+</main><footer><span><b>ZLAC8015D</b> / Differential drive console</span><span id="footer-mode">Web → ROS 2 → Driver · Không truy cập RS485 từ web</span></footer>
+</div></body></html>

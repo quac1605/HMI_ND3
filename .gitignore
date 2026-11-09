@@ -1,0 +1,33 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C/C++ build artifacts
+*.o
+*.obj
+*.so
+*.dylib
+*.a
+
+# ROS 2 / Colcon build artifacts
+build/
+install/
+log/
+.runtime/
+
+# Environments
+.env
+.venv/
+venv/
+ENV/
+env/
+
+# IDE & Tool configurations
+.vscode/
+.agents/
+.codex/
+
+# OS generated files
+.DS_Store
+Thumbs.db
